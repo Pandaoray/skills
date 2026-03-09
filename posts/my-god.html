@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>/myGod：一行需求到完整 PR 的自动化开发流水线 — Skill Notes</title>
+  <meta name="description" content="my-god skill 介绍：通过 9 个阶段、多 Agent 协作，将一行需求转化为完整的开发 PR。">
+  <link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-logo" href="/">Skill<span>.</span>Notes</a>
+    <nav class="site-nav">
+      <a href="/">文章</a>
+      <a href="https://github.com/haorui" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+  <article>
+    <header class="article-header">
+      <a class="back-link" href="/">← 返回首页</a>
+
+      <div class="article-tags">
+        <span class="tag">开发流程</span>
+        <span class="tag">Multi-Agent</span>
+        <span class="tag">Claude Skills</span>
+      </div>
+
+      <h1>/myGod：一行需求到完整 PR 的自动化开发流水线</h1>
+
+      <div class="article-meta">
+        <span>2025-03-09</span>
+        <span class="dot">·</span>
+        <span>约 10 分钟阅读</span>
+      </div>
+    </header>
+
+    <div class="article-body">
+
+      <p>把一个需求扔给 AI，然后直接拿到一个可以合并的 PR——这不是科幻，而是 <code>/myGod</code> skill 现在就能做到的事。</p>
+
+      <p>软件开发中有大量流程是可以被自动化的：需求梳理、架构讨论、任务拆解、编码、测试、代码审查……每一步都需要时间，都需要上下文切换。<strong>my-god skill 把这整条流水线编排成一套可重复执行的 Agent 协作流程</strong>，让你专注于真正需要人类判断的部分。</p>
+
+      <h2>三种模式，对应三种场景</h2>
+
+      <p>my-god 并不是一个"大而全"的黑盒，它根据任务紧急程度和复杂度，提供三种工作模式：</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>命令</th>
+            <th>模式</th>
+            <th>适用场景</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/myGod {需求}</code></td>
+            <td>完整模式</td>
+            <td>新功能、有一定复杂度的任务</td>
+          </tr>
+          <tr>
+            <td><code>/myGod quick {需求}</code></td>
+            <td>快速模式</td>
+            <td>改动范围明确、无需架构讨论</td>
+          </tr>
+          <tr>
+            <td><code>/myGod hotfix {需求}</code></td>
+            <td>紧急修复</td>
+            <td>线上 Bug，分秒必争</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>三种模式的本质区别是流程的精简程度。完整模式走完整 9 阶段；快速模式跳过架构设计和集成；hotfix 模式直奔代码，只做最后的冒烟测试。</p>
+
+      <h2>完整模式：9 个阶段的流水线</h2>
+
+      <p>以完整模式为例，看看一个需求是如何被逐步落地的：</p>
+
+      <ul class="phase-list">
+        <li class="phase-item">
+          <div class="phase-num">0</div>
+          <div class="phase-body">
+            <h4>初始化</h4>
+            <p>生成唯一工作流 ID，创建 <code>.ai/myGod/workflow-{timestamp}/</code> 工作目录，自动建立 Git 功能分支。所有产出物都有迹可查。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">1</div>
+          <div class="phase-body">
+            <h4>需求澄清 <small>（需要你参与）</small></h4>
+            <p>AI 会主动提问，最多 4 轮、每轮 3-8 个问题，覆盖功能边界、用户场景、技术约束、验收标准。这一步产出的 <code>01-clarification.md</code> 是后续所有阶段的"宪法"。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">2</div>
+          <div class="phase-body">
+            <h4>架构设计</h4>
+            <p>独立的架构师 Agent 接管，读取需求文档和项目结构，给出技术方案。如果项目还没有 AGENTS.md，会自动生成一份 <code>auto-agents.md</code> 作为参考。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">3</div>
+          <div class="phase-body">
+            <h4>任务拆解</h4>
+            <p>拆解 Agent 把架构方案分解成具体的开发任务，标注依赖关系，识别哪些任务可以并行执行——这直接影响后续开发的效率。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">4</div>
+          <div class="phase-body">
+            <h4>并行开发</h4>
+            <p>这是最有意思的部分。多个开发者 Agent 同时工作，每个人负责一条独立的任务轨道。这是真正的 Multi-Agent 协作，而不是顺序执行。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">5</div>
+          <div class="phase-body">
+            <h4>单元验证</h4>
+            <p>每个开发任务完成后立即跑单元测试和 lint 检查。如果失败，直接反馈给对应的开发者 Agent 修复，形成闭环。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">6</div>
+          <div class="phase-body">
+            <h4>集成</h4>
+            <p>所有任务完成后，处理模块间的冲突，跑集成测试。简单冲突自动解决，复杂冲突标记出来等人介入。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">7</div>
+          <div class="phase-body">
+            <h4>代码审查</h4>
+            <p>独立的审查 Agent 检查代码风格、安全问题（OWASP Top 10）、性能和测试覆盖率。问题按严重程度分级：阻塞 / 警告 / 建议。阻塞问题会循环发回开发者修复，最多重试 3 次。</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <div class="phase-num">8</div>
+          <div class="phase-body">
+            <h4>最终验证 + 提交 <small>（需要你参与）</small></h4>
+            <p>全量测试通过后，将 <code>08-final-checklist.md</code> 呈现给你确认。一旦你点头，自动 commit、自动创建 PR，附上完整的变更摘要和测试结果。</p>
+          </div>
+        </li>
+      </ul>
+
+      <h2>上下文压缩：Agent 之间如何"传话"</h2>
+
+      <p>9 个阶段意味着大量的上下文需要在 Agent 之间流转。my-god 用一套上下文压缩机制解决这个问题——每个阶段结束后生成一份精简摘要，分三个层次：</p>
+
+      <ul>
+        <li><strong>Must Know</strong>：关键决策和硬约束，下游 Agent 必须知道</li>
+        <li><strong>Should Know</strong>：重要背景信息，有助于做出更好的决策</li>
+        <li><strong>Reference</strong>：指向详细文档的链接，按需查阅</li>
+      </ul>
+
+      <p>每个 Agent 只收到它需要的那部分摘要，而不是全量历史记录。这既节省了上下文空间，也避免了信息过载。</p>
+
+      <h2>降级策略：出了问题怎么办</h2>
+
+      <p>现实中 Agent 会超时、会失败。my-god 设计了明确的降级路径：</p>
+
+      <blockquote>
+        完整能力 → 简化执行 → 最小可行 → 人工接管
+      </blockquote>
+
+      <p>比如测试生成失败，它会退而跑已有测试；代码审查超时，它会只跑 lint；集成有冲突，它会标记出来请人处理。整个系统尽量往前走，遇到真正无法自动解决的问题才停下来。</p>
+
+      <h2>与现有项目集成</h2>
+
+      <p>my-god 会优先读取项目中已有的 <code>AGENTS.md</code> 文件来理解项目结构和规范。如果没有，它会扫描目录树、识别技术栈，自动生成一份 <code>auto-agents.md</code> 作为临时参考。</p>
+
+      <div class="callout callout-tip">
+        <div class="callout-title">💡 小建议</div>
+        <p>搭配 <code>agents-book</code> skill 先为项目生成完整的 AGENTS.md 文档体系，再使用 my-god——这样 AI 对你项目的理解会更准确，生成的代码也更符合已有规范。</p>
+      </div>
+
+      <h2>实际使用</h2>
+
+      <p>在 Claude Code 中，直接输入：</p>
+
+      <pre><code>/myGod 为用户列表页添加分页和搜索功能</code></pre>
+
+      <p>接下来只需要回答澄清问题，确认最终 checklist，其余都交给 Agent 团队。</p>
+
+      <p>对于紧急修复：</p>
+
+      <pre><code>/myGod hotfix 修复登录接口 500 错误</code></pre>
+
+      <p>my-god 会跳过所有流程性工作，最快速度定位和修复问题。</p>
+
+      <h2>小结</h2>
+
+      <p>my-god 的核心思想是：<strong>把可以标准化的开发流程交给 Agent 协作完成，把真正需要人类判断的节点保留下来</strong>。它不是要取代开发者，而是把你从流程性的重复劳动中解放出来，让你把精力放在真正重要的决策上。</p>
+
+      <p>配合好项目文档（比如 AGENTS.md），它能做到的事情会让你重新审视"开发效率"这个词的边界在哪里。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <p>用 Claude Code 写就，部署于 GitHub Pages</p>
+</footer>
+
+</body>
+</html>

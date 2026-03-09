@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agents-book：给 AI 一份读懂你代码库的地图 — Skill Notes</title>
+  <meta name="description" content="agents-book skill 介绍：自动生成 AGENTS.md 文档体系，让 AI 在不读完所有源码的前提下就能理解项目结构。">
+  <link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-logo" href="/">Skill<span>.</span>Notes</a>
+    <nav class="site-nav">
+      <a href="/">文章</a>
+      <a href="https://github.com/haorui" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+  <article>
+    <header class="article-header">
+      <a class="back-link" href="/">← 返回首页</a>
+
+      <div class="article-tags">
+        <span class="tag">文档工程</span>
+        <span class="tag">AI 协作</span>
+        <span class="tag">Claude Skills</span>
+      </div>
+
+      <h1>agents-book：给 AI 一份读懂你代码库的地图</h1>
+
+      <div class="article-meta">
+        <span>2025-03-09</span>
+        <span class="dot">·</span>
+        <span>约 8 分钟阅读</span>
+      </div>
+    </header>
+
+    <div class="article-body">
+
+      <p>AI 编程助手有一个根本性的局限：<strong>它不了解你的项目</strong>。</p>
+
+      <p>每次开启一个新的对话，你都要重新"喂信息"——这个模块是干什么的、那个字段有什么特殊含义、修改这里会不会触发缓存失效……这些隐性知识散落在代码、注释、会议记录、工程师的大脑里，AI 根本没有途径获取。</p>
+
+      <p><strong>agents-book 做的事情，就是把这些隐性知识显性化</strong>，生成一套 AI 可以直接阅读的 <code>AGENTS.md</code> 文档体系。</p>
+
+      <h2>AGENTS.md 是什么</h2>
+
+      <p>如果说 <code>README.md</code> 是写给人类新成员的项目介绍，那么 <code>AGENTS.md</code> 就是专门为 AI Agent 设计的导航手册。</p>
+
+      <p>它的设计目标只有一个：<strong>让 Agent 在不读完所有源码的前提下，就能建立起对项目的心智模型</strong>——知道要改哪里，知道改了会影响什么，知道有哪些潜在风险。</p>
+
+      <p>这不是"解释代码"，而是"传递工程知识"。两者的区别在于：</p>
+
+      <ul>
+        <li>解释代码：告诉 AI 这段代码在做什么</li>
+        <li>传递工程知识：告诉 AI <em>为什么</em>这样设计、<em>能不能</em>改、<em>改了</em>会怎样</li>
+      </ul>
+
+      <h2>三个阶段生成完整文档体系</h2>
+
+      <h3>阶段一：全景侦察</h3>
+
+      <p>agents-book 首先扫描整个代码库，建立目录清单，区分三类目录：</p>
+
+      <ul>
+        <li><strong>业务模块</strong>：承载具体功能的目录（features/、domain/、service/）</li>
+        <li><strong>基础设施层</strong>：通用能力目录（utils/、common/、infra/）</li>
+        <li><strong>配置与脚本</strong>：CI/CD、迁移脚本、自动化工具</li>
+      </ul>
+
+      <p>这一步是"结构认知"，不是"业务理解"。目的是搞清楚项目的骨架，为后续的文档生成打基础。</p>
+
+      <h3>阶段二：根目录 AGENTS.md</h3>
+
+      <p>根目录的 <code>AGENTS.md</code> 是整个文档体系的"地图索引"，包含四个核心部分：</p>
+
+      <ol>
+        <li>
+          <strong>系统概述</strong>：项目解决什么问题、核心业务边界、主要技术栈
+        </li>
+        <li>
+          <strong>目录导航</strong>：每个目录的职责和注意事项，附带子目录 AGENTS.md 的链接
+        </li>
+        <li>
+          <strong>核心业务场景索引</strong>：5-20 个真实存在的核心场景，精确到代码入口：
+          <pre><code>- **用户注册**
+  - 入口: UserController.register
+  - 核心逻辑: UserService.createUser
+  - 副作用: EmailProducer.sendWelcome</code></pre>
+        </li>
+        <li>
+          <strong>全局设计约束</strong>：事务规则、缓存策略、异步消息原则，以及<em>明确禁止的操作</em>（比如"禁止跨模块直接查 DB"）
+        </li>
+      </ol>
+
+      <h3>阶段三：递归子目录文档</h3>
+
+      <p>这是工作量最大的部分。agents-book 从根目录向下递归，为每一个有业务逻辑的目录生成对应的 <code>AGENTS.md</code>。</p>
+
+      <p>针对不同类型的目录，使用不同的文档模板：</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>目录类型</th>
+            <th>适用模板</th>
+            <th>核心内容</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>业务模块</td>
+            <td>模板 A</td>
+            <td>核心工作流、副作用（Redis key、Kafka topic）、修改入口、风险点</td>
+          </tr>
+          <tr>
+            <td>基础设施/工具层</td>
+            <td>模板 B</td>
+            <td>组件定位、使用约束、常见误用、调用示例</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>只有文件数少于 3 个且无业务逻辑的空目录才会被跳过，其余一律覆盖。</p>
+
+      <h2>文档质量的关键：真实性</h2>
+
+      <p>agents-book 最强调的一点是<strong>文档必须基于真实代码</strong>，而不是模板化的套话。它明确禁止以下反模式：</p>
+
+      <ul>
+        <li>❌ 用模糊表达代替具体类名（"处理相关逻辑的服务"）</li>
+        <li>❌ 只描述"目录职责"而不给出代码结构</li>
+        <li>❌ 回避副作用（缓存、异步、幂等、补偿机制）</li>
+        <li>❌ 生成看起来正确但无法指导修改的文档</li>
+      </ul>
+
+      <p>一份合格的业务模块文档，要包含至少 5 个真实的类/方法引用，并且能回答两个问题：</p>
+
+      <blockquote>
+        "做这个需求，我从哪里开始改？"<br>
+        "改了这里，还有哪里会受影响？"
+      </blockquote>
+
+      <h2>生成后的效果</h2>
+
+      <p>一个完整的 AGENTS.md 文档体系生成后，你的项目会多出一套这样的结构：</p>
+
+      <pre><code>project/
+├── AGENTS.md              ← 全局地图
+├── src/
+│   ├── AGENTS.md          ← 源码层概览
+│   ├── user/
+│   │   └── AGENTS.md      ← 用户模块：工作流、副作用、风险
+│   ├── order/
+│   │   └── AGENTS.md      ← 订单模块：...
+│   └── common/
+│       └── AGENTS.md      ← 公共层：使用约束、禁止误用
+└── migrations/
+    └── AGENTS.md          ← 数据库迁移：风险提示</code></pre>
+
+      <p>每个文件都是独立可读的——AI 不需要通读整个体系，只需要找到相关目录的 AGENTS.md，就能理解上下文，开始工作。</p>
+
+      <div class="callout callout-tip">
+        <div class="callout-title">💡 最佳使用时机</div>
+        <p>在项目新成员入职时、在引入 AI 辅助开发工具时、在项目架构进行较大调整后，运行一次 agents-book 重新生成文档。把 AGENTS.md 和代码一起提交到版本库，让它随代码演进。</p>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ 注意</div>
+        <p>AGENTS.md 文档体系的质量取决于代码本身的结构清晰程度。如果模块边界模糊、职责混杂，文档也无法掩盖这些问题——但至少能让它们变得可见。</p>
+      </div>
+
+      <h2>如何使用</h2>
+
+      <p>在 Claude Code 中，针对你的项目启动 agents-book：</p>
+
+      <pre><code>我想为这个项目生成 AGENTS.md 文档体系，请使用 agents-book skill</code></pre>
+
+      <p>skill 会引导你确认项目路径，然后自动完成三个阶段的文档生成。整个过程无需人工干预，只在需要确认跳过某些目录时才会停下来问你。</p>
+
+      <h2>与 /myGod 的组合使用</h2>
+
+      <p>agents-book 生成的 AGENTS.md 是 <code>/myGod</code> skill 的重要输入。当 my-god 的架构 Agent 在设计方案时，它会读取 AGENTS.md 来理解现有的模块边界和设计约束；开发 Agent 在写代码时，会参考各目录的 AGENTS.md 来了解接口规范和注意事项。</p>
+
+      <p><strong>两个 skill 配合使用，能让整个 AI 辅助开发流程的质量上一个台阶</strong>：agents-book 负责"让 AI 读懂项目"，my-god 负责"让 AI 交付功能"。</p>
+
+      <h2>小结</h2>
+
+      <p>agents-book 解决的是 AI 辅助开发中最基础的问题：上下文缺失。它不是一个花哨的工具，而是一个<strong>把隐性工程知识系统性显性化</strong>的文档工程 skill。</p>
+
+      <p>如果你发现自己在每次跟 AI 协作时都要反复解释"我们的项目是这样的……"，那么 agents-book 就是你需要的那个一次性投入、长期受益的解决方案。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <p>用 Claude Code 写就，部署于 GitHub Pages</p>
+</footer>
+
+</body>
+</html>
