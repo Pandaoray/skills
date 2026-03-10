@@ -374,6 +374,52 @@ a:hover { text-decoration: underline; }
   font-size: 0.825rem;
 }
 
+/* ── Download Box ── */
+
+.download-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 2rem 0 0.75rem;
+}
+
+.download-box-name {
+  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+}
+
+.download-box-desc {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.download-btn {
+  display: inline-block;
+  padding: 8px 18px;
+  background: var(--accent);
+  color: #fff !important;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none !important;
+  transition: opacity 0.15s;
+}
+
+.download-btn:hover { opacity: 0.85; text-decoration: none !important; }
+
+.download-hint {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 600px) {
