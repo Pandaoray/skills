@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>podcast-chat：把播客变成可以对话的知识库 — Skill Notes</title>
+  <meta name="description" content="podcast-chat skill 介绍：扔一个播客链接，自动完成音频下载、Whisper 转录、结构化摘要，然后和 AI 深聊内容。">
+  <link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-logo" href="/skills/">Skill<span>.</span>Notes</a>
+    <nav class="site-nav">
+      <a href="/skills/">文章</a>
+      <a href="https://github.com/Pandaoray" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+  <article>
+    <header class="article-header">
+      <a class="back-link" href="/skills/">← 返回首页</a>
+
+      <div class="article-tags">
+        <span class="tag">播客</span>
+        <span class="tag">语音转录</span>
+        <span class="tag">Claude Skills</span>
+      </div>
+
+      <h1>podcast-chat：把播客变成可以对话的知识库</h1>
+
+      <div class="article-meta">
+        <span>2026-03-10</span>
+        <span class="dot">·</span>
+        <span>约 7 分钟阅读</span>
+      </div>
+    </header>
+
+    <div class="article-body">
+
+      <p>播客有个根本性的问题：<strong>它是线性的</strong>。一集两小时的节目，你要么从头听到尾，要么在快进中错过关键内容；想回忆某个观点，只能靠模糊的时间印象反复拖动进度条。</p>
+
+      <p>podcast-chat 解决的就是这个问题。扔一个链接进去，它自动完成音频下载、Whisper 转录、结构化摘要，最后和你深聊内容——<strong>带时间戳引用，随时跳回原音频</strong>。</p>
+
+      <h2>支持的平台</h2>
+
+      <p>目前支持两个平台：</p>
+
+      <ul>
+        <li><strong>Apple Podcasts</strong>：直接粘贴分享链接（<code>podcasts.apple.com/...?i={episode_id}</code>）</li>
+        <li><strong>小宇宙</strong>：粘贴单集链接（<code>xiaoyuzhoufm.com/episode/...</code>）</li>
+      </ul>
+
+      <p>两个平台覆盖了国内外主流播客的绝大多数内容。Apple Podcasts 的链接支持最近约 200 集（通过 iTunes API 获取音频），更早的老节目建议用小宇宙链接代替。</p>
+
+      <h2>完整流水线：七个步骤</h2>
+
+      <h3>缓存优先</h3>
+
+      <p>每次运行前，skill 会先用 URL 的 MD5 作为 key 检查本地转录缓存（存在 <code>~/.claude/memory/podcasts/</code>）。同一集播客，第二次打开秒出摘要，不需要重新转录。</p>
+
+      <h3>音频获取</h3>
+
+      <p>缓存未命中时，从平台 API 提取音频直链，下载到本地临时目录。下载完成后立刻检测音频时长——这直接影响下一步的模型选择。</p>
+
+      <h3>智能模型选择</h3>
+
+      <p>这一步是 podcast-chat 比较用心的地方。它会先检测本地有没有 <code>faster-whisper</code>，再根据音频时长和语言给出推荐：</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>场景</th>
+            <th>推荐模型</th>
+            <th>理由</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>中文播客（任意时长）</td>
+            <td>medium</td>
+            <td>中文识别准确率明显更高</td>
+          </tr>
+          <tr>
+            <td>英文播客，超过 40 分钟</td>
+            <td>small</td>
+            <td>精度够用，速度约快 3 倍</td>
+          </tr>
+          <tr>
+            <td>英文播客，40 分钟以内</td>
+            <td>medium</td>
+            <td>时间可控，不必牺牲精度</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>如果没有装任何转录后端，skill 会自动安装 <code>faster-whisper</code>（相比原版 openai-whisper 速度约快 4 倍）。转录以后台任务形式运行，不阻塞对话。</p>
+
+      <h3>结构化摘要</h3>
+
+      <p>转录完成后，skill 生成一份固定格式的摘要：</p>
+
+      <pre><code>## 📻 节目标题
+平台 | 时长 | 主播
+
+### 核心主题
+[1-2 句概括]
+
+### 主要观点
+1. ...（3-7 条，每条附简短说明）
+
+### 值得关注的细节
+[有意思的细节或金句，附大致时间位置]</code></pre>
+
+      <p>摘要结束后，直接进入对话模式。</p>
+
+      <h3>带时间戳的对话</h3>
+
+      <p>这是整个 skill 最实用的部分。在对话中问任何问题，AI 回答时会附上时间位置：</p>
+
+      <blockquote>
+        "主播在约第 <strong>35 分钟</strong>提到，……"
+      </blockquote>
+
+      <p>时间戳来自转录文本里的 <code>[Xs]</code> 标记（秒数），skill 自动换算成分钟数。你可以直接拿这个时间跳到原音频，验证上下文，或者继续追问细节。</p>
+
+      <h2>使用方式</h2>
+
+      <p>在 Claude Code 中，直接扔链接就行：</p>
+
+      <pre><code>https://podcasts.apple.com/cn/podcast/...?i=1000693000000 这期讲了什么</code></pre>
+
+      <pre><code>https://www.xiaoyuzhoufm.com/episode/abc123 帮我转录这集，想聊聊里面的观点</code></pre>
+
+      <p>触发关键词：转录、内容、讲了什么、分析、对谈、聊聊，以及英文的 transcript、summarize。</p>
+
+      <div class="callout callout-tip">
+        <div class="callout-title">💡 关于转录速度</div>
+        <p>以 faster-whisper medium 模型为例，一集 60 分钟的中文播客，M 系列 Mac 本地转录大约需要 10-15 分钟。转录在后台运行，完成前你可以继续做别的事，结束后 skill 自动推送结果。</p>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ 依赖安装</div>
+        <p>首次使用需要安装 <code>faster-whisper</code>（或 <code>openai-whisper</code>）和 <code>ffmpeg</code>。skill 会自动检测并提示，但 ffmpeg 需要手动安装：<code>brew install ffmpeg</code>（macOS）。</p>
+      </div>
+
+      <h2>转录缓存的意义</h2>
+
+      <p>每次转录的结果会保存到 <code>~/.claude/memory/podcasts/</code>，下次打开同一集直接读缓存。这个设计有两个好处：</p>
+
+      <ul>
+        <li><strong>节省时间</strong>：反复回顾某集节目时，不需要重新等转录</li>
+        <li><strong>跨会话使用</strong>：今天转录的内容，下周依然可以继续追问</li>
+      </ul>
+
+      <p>缓存用 URL 的 MD5 命名，互不干扰，积累下来就是一个私人的播客知识库。</p>
+
+      <h2>小结</h2>
+
+      <p>podcast-chat 的价值在于把一种消费型媒介（线性音频）变成了一种可检索、可对话的知识形态。它不是简单的"总结工具"，而是让你能够真正和播客内容互动：追问细节、验证论点、提取观点、关联思考。</p>
+
+      <p>如果你有在听播客的习惯，这个 skill 会让你从播客里提取的价值翻倍。</p>
+
+      <div class="download-box">
+        <div class="download-box-info">
+          <div class="download-box-name">podcast-chat</div>
+          <div class="download-box-desc">Claude Code Skill · SKILL.md</div>
+        </div>
+        <a class="download-btn" href="https://raw.githubusercontent.com/Pandaoray/skills/main/skills/podcast-chat.md" download="podcast-chat.md">下载 Skill</a>
+      </div>
+
+      <p class="download-hint">下载后将文件放入 <code>~/.claude/skills/</code> 目录，重启 Claude Code 即可使用。还需安装 <code>ffmpeg</code> 和 <code>faster-whisper</code>（<code>pip install faster-whisper</code>）。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <p>用 Claude Code 写就，部署于 GitHub Pages</p>
+</footer>
+
+</body>
+</html>
