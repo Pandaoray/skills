@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>/history-session：再也不怕找不回 Claude Code 历史会话 — Skill Notes</title>
+  <meta name="description" content="history-session skill 介绍：在任意目录输入 /history-session，即刻列出该目录的历史 Claude Code 会话及 --resume 命令。">
+  <link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-logo" href="/skills/">Skill<span>.</span>Notes</a>
+    <nav class="site-nav">
+      <a href="/skills/">文章</a>
+      <a href="https://github.com/Pandaoray" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+  <article>
+    <header class="article-header">
+      <a class="back-link" href="/skills/">← 返回首页</a>
+
+      <div class="article-tags">
+        <span class="tag">会话管理</span>
+        <span class="tag">Claude Code</span>
+        <span class="tag">Claude Skills</span>
+      </div>
+
+      <h1>/history-session：再也不怕找不回 Claude Code 历史会话</h1>
+
+      <div class="article-meta">
+        <span>2026-03-13</span>
+        <span class="dot">·</span>
+        <span>约 6 分钟阅读</span>
+      </div>
+    </header>
+
+    <div class="article-body">
+
+      <p>Claude Code 有个不起眼但很实用的功能：<code>claude --resume &lt;session-id&gt;</code>。它能让你恢复一个历史会话，完整的上下文、之前讨论的代码、未完成的任务——全部回来了。</p>
+
+      <p>问题是，<strong>你得先知道那个 session ID 是什么</strong>。</p>
+
+      <p>Claude Code 在会话结束时会打印一行 <code>Session ID: xxxxxxxx</code>，但窗口一关就消失了。下次想继续某个任务，要么靠记忆，要么去 <code>~/.claude/projects/</code> 里翻文件——这体验并不好。</p>
+
+      <p>history-session skill 解决的就是这个问题。在任意目录输入 <code>/history-session</code>，立刻看到该目录下的所有历史会话：</p>
+
+      <pre><code>📋 历史会话（当前目录）
+1. [今天] [main] 实现用户认证模块与 JWT 集成
+   claude --resume a3f8c2d1
+2. [昨天] 修复 API 响应缓存导致的数据不一致问题
+   claude --resume 9e4b7f20
+3. [3天前] 重构数据库连接池，优化并发性能
+   claude --resume c1d5a890
+（共 7 条，显示最近 10 条）</code></pre>
+
+      <h2>Claude Code 其实已经记录了一切</h2>
+
+      <p>这个 skill 之所以能做到这些，是因为 Claude Code 本身就在自动维护一份会话索引。</p>
+
+      <p>每个项目目录，Claude Code 都会在 <code>~/.claude/projects/&lt;slug&gt;/</code> 下保存两类文件：</p>
+
+      <ul>
+        <li><strong>sessions-index.json</strong>：索引文件，包含每条会话的 sessionId、AI 自动生成的 summary、时间戳、git 分支等元信息</li>
+        <li><strong>*.jsonl</strong>：原始会话文件，逐行记录完整的对话消息</li>
+      </ul>
+
+      <p>其中 slug 是把项目路径的所有非字母数字字符替换为 <code>-</code> 得到的，例如 <code>/Users/haorui/Code/oasis</code> 对应 <code>-Users-haorui-Code-oasis</code>。</p>
+
+      <p>history-session skill 所做的，就是读取这些文件，格式化后呈现给你。</p>
+
+      <h2>三层查找策略</h2>
+
+      <p>这个 skill 在设计上花了不少心思，目标是在<strong>正确性</strong>和<strong>速度</strong>之间取得平衡。</p>
+
+      <h3>策略一：直接定位（O(1)）</h3>
+
+      <p>用当前路径生成 slug，直接读对应目录的 <code>sessions-index.json</code>。这是最快的路径，覆盖了 95% 以上的情况——只要你在这个目录用过 Claude Code，文件基本都在。</p>
+
+      <h3>策略二：补充扫描（O(n) 条目）</h3>
+
+      <p>索引文件并不总是完整的。有些早期会话、或者从来没有 <code>--resume</code> 过的会话，只有 <code>.jsonl</code> 文件，没有 index 条目。策略二会扫描同一目录下的所有 <code>.jsonl</code>，把 index 中没有的会话补进来。</p>
+
+      <p>为了性能，每个 <code>.jsonl</code> 文件最多只读 200 行——通常 summary 条目或第一条用户消息都出现在文件开头，完全够用。</p>
+
+      <h3>策略三：全目录回退（兜底）</h3>
+
+      <p>极少数情况下，路径中含有特殊字符导致 slug 碰撞（比如 <code>/foo/bar</code> 和 <code>/foo-bar</code> 生成相同 slug）。这时才会触发全扫描：遍历 <code>~/.claude/projects/</code> 下所有目录，用 <code>originalPath</code> 字段精确匹配。</p>
+
+      <div class="callout callout-tip">
+        <div class="callout-title">💡 关于策略合并</div>
+        <p>策略一和策略二会<strong>合并去重</strong>，以 session UUID 为 key 做字典合并。这意味着 index 里有的会话不会在 .jsonl 扫描时重复出现，两个来源的会话统一按时间排序后呈现。</p>
+      </div>
+
+      <h2>输出设计的细节</h2>
+
+      <h3>相对时间</h3>
+
+      <p>比起 <code>2026-03-11</code>，<strong>3天前</strong> 更符合人的直觉。skill 会把绝对日期转换为：今天 / 昨天 / N天前 / N周前 / N个月前 / N年前。</p>
+
+      <h3>Git 分支</h3>
+
+      <p>如果会话发生时有 git 分支信息，会以 <code>[branch-name]</code> 的形式附在日期后面。对于多分支并行开发的项目，能快速识别某条会话是在哪个分支上进行的。</p>
+
+      <h3>总数提示</h3>
+
+      <p>历史会话超过 10 条时，末尾会显示 <code>（共 X 条，显示最近 10 条）</code>，让你知道还有更多记录。</p>
+
+      <h2>使用方式</h2>
+
+      <p>在 Claude Code 中直接输入：</p>
+
+      <pre><code>/history-session</code></pre>
+
+      <p>也可以用自然语言触发：</p>
+
+      <pre><code>查看历史会话
+看看之前在这个目录做了什么
+history session</code></pre>
+
+      <p>看到列表后，复制对应的 <code>claude --resume xxxxxxxx</code> 命令，在终端执行即可恢复会话。</p>
+
+      <h2>一个典型场景</h2>
+
+      <p>周一在 <code>oasis</code> 目录开了个会话，优化了数据库查询，处理到一半因为有别的事情中断了。周三回来，不记得 session ID，也不记得当时讨论到哪了。</p>
+
+      <p>输入 <code>/history-session</code>，看到：</p>
+
+      <pre><code>2. [2天前] [feature/db-opt] 优化用户查询性能，增加索引...
+   claude --resume 7a3f9c12</code></pre>
+
+      <p>分支名 <code>feature/db-opt</code>、摘要里的关键词，立刻确认这就是那个会话。<code>claude --resume 7a3f9c12</code>，上下文全回来了，继续。</p>
+
+      <h2>小结</h2>
+
+      <p>history-session 没有做任何"额外"的事——它只是把 Claude Code 自己维护的数据，用一种人能看懂的方式展示出来。</p>
+
+      <p>这正是好工具的特质：不引入新的复杂性，只是让已有的能力变得触手可及。</p>
+
+      <div class="download-box">
+        <div class="download-box-info">
+          <div class="download-box-name">history-session</div>
+          <div class="download-box-desc">Claude Code Skill · SKILL.md</div>
+        </div>
+        <a class="download-btn" href="https://github.com/Pandaoray/skillHome/raw/main/history-session/history-session.zip" download="history-session.zip">下载 Skill (.zip)</a>
+      </div>
+
+      <p class="download-hint">解压后将 <code>history-session/</code> 目录放入 <code>~/.claude/skills/</code>，重启 Claude Code 即可使用。仅依赖 Python 3 标准库，无需额外安装。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <p>用 Claude Code 写就，部署于 GitHub Pages</p>
+</footer>
+
+</body>
+</html>
